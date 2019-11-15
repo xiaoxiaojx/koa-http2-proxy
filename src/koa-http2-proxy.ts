@@ -1,77 +1,110 @@
-import * as httpProxy from 'http-proxy';
-import * as _ from 'lodash';
+import { request } from 'http';
+
+import * as finalhandler from 'finalhandler';
+import * as proxy from 'http2-proxy';
+import * as url from 'url';
+
 import { createConfig } from './config-factory';
 import * as contextMatcher from './context-matcher';
-import * as handlers from './handlers';
 import { getArrow, getInstance } from './logger';
 import * as PathRewriter from './path-rewriter';
 import * as Router from './router';
 
-export class HttpProxyMiddleware {
+export class KoaHttp2Proxy {
   private logger = getInstance();
   private config;
   private wsInternalSubscribed = false;
   private proxyOptions;
-  private proxy;
   private pathRewriter;
 
   constructor(context, opts) {
     this.config = createConfig(context, opts);
     this.proxyOptions = this.config.options;
 
-    // create proxy
-    this.proxy = httpProxy.createProxyServer({});
-    this.logger.info(
-      `[HPM] Proxy created: ${this.config.context}  -> ${this.proxyOptions.target}`
-    );
-
     this.pathRewriter = PathRewriter.createPathRewriter(
       this.proxyOptions.pathRewrite
     ); // returns undefined when "pathRewrite" is not provided
 
-    // attach handler to http-proxy events
-    handlers.init(this.proxy, this.proxyOptions);
-
-    // log errors for debug purpose
-    this.proxy.on('error', this.logError);
-
-    // https://github.com/chimurai/http-proxy-middleware/issues/19
-    // expose function to upgrade externally
-    (this.middleware as any).upgrade = (req, socket, head) => {
-      if (!this.wsInternalSubscribed) {
-        this.handleUpgrade(req, socket, head);
-      }
-    };
+    this.logger.info(
+      `[HPM] Proxy created: ${this.config.context}  -> ${this.proxyOptions.target}`
+    );
   }
 
   // https://github.com/Microsoft/TypeScript/wiki/'this'-in-TypeScript#red-flags-for-this
-  public middleware = async (req, res, next) => {
-    if (this.shouldProxy(this.config.context, req)) {
-      const activeProxyOptions = this.prepareProxyRequest(req);
-      this.proxy.web(req, res, activeProxyOptions);
-    } else {
-      next();
+  public middleware = async (ctx, next) => {
+    if (!this.shouldProxy(this.config.context, ctx.req)) {
+      return next();
     }
-
     if (this.proxyOptions.ws === true) {
       // use initial request to access the server object to subscribe to http upgrade event
-      this.catchUpgradeRequest(req.connection.server);
+      this.catchUpgradeRequest(ctx);
     }
+
+    return new Promise((resolve, reject) =>
+      proxy.web(
+        ctx.req,
+        ctx.res,
+        this.prepareProxyRequest(ctx, resolve),
+        this.defaultWebHandler(ctx, resolve, reject)
+      )
+    );
   };
 
-  private catchUpgradeRequest = server => {
+  private catchUpgradeRequest = ctx => {
     if (!this.wsInternalSubscribed) {
-      server.on('upgrade', this.handleUpgrade);
+      ctx.req.connection.server.on('upgrade', this.handleUpgrade(ctx));
       // prevent duplicate upgrade handling;
       // in case external upgrade is also configured
       this.wsInternalSubscribed = true;
     }
   };
 
-  private handleUpgrade = (req, socket, head) => {
+  private handleReq = ctx => (req, options) => {
+    const proxyReq = request(options);
+
+    if (!this.proxyOptions.changeOrigin) {
+      proxyReq.setHeader('host', req.headers.host);
+    }
+
+    if (this.proxyOptions.headers) {
+      for (const k of Object.keys(this.proxyOptions.headers)) {
+        proxyReq.setHeader(k, this.proxyOptions.headers[k]);
+      }
+    }
+    if (this.proxyOptions.xfwd) {
+      proxyReq.setHeader('x-forwarded-for', req.socket.remoteAddress);
+      proxyReq.setHeader(
+        'x-forwarded-proto',
+        req.socket.encrypted ? 'https' : 'http'
+      );
+      proxyReq.setHeader('x-forwarded-host', req.headers.host);
+    }
+
+    if (this.proxyOptions.onProxyReq) {
+      this.proxyOptions.onProxyReq(proxyReq, ctx);
+    }
+
+    return proxyReq;
+  };
+
+  private handleRes = (ctx, resolve) => (_, __, proxyRes) => {
+    if (this.proxyOptions.onProxyRes) {
+      this.proxyOptions.onProxyRes(proxyRes, ctx);
+    }
+
+    ctx.response.status = proxyRes.statusCode;
+    ctx.response.set(proxyRes.headers);
+    ctx.response.body = proxyRes;
+
+    if (resolve) {
+      resolve();
+    }
+  };
+
+  private handleUpgrade = ctx => (req, socket, head) => {
     if (this.shouldProxy(this.config.context, req)) {
-      const activeProxyOptions = this.prepareProxyRequest(req);
-      this.proxy.ws(req, socket, head, activeProxyOptions);
+      const activeProxyOptions = this.prepareProxyRequest(ctx, null);
+      proxy.ws(req, socket, head, activeProxyOptions, this.defaultWSHandler);
       this.logger.info('[HPM] Upgrading to WebSocket');
     }
   };
@@ -97,39 +130,50 @@ export class HttpProxyMiddleware {
    * @param {Object} req
    * @return {Object} proxy options
    */
-  private prepareProxyRequest = req => {
+  private prepareProxyRequest = (ctx, resolve) => {
     // https://github.com/chimurai/http-proxy-middleware/issues/17
     // https://github.com/chimurai/http-proxy-middleware/issues/94
-    req.url = req.originalUrl || req.url;
+    ctx.req.url = ctx.req.originalUrl || ctx.req.url;
 
     // store uri before it gets rewritten for logging
-    const originalPath = req.url;
-    const newProxyOptions = _.assign({}, this.proxyOptions);
+    const originalPath = ctx.req.url;
 
     // Apply in order:
     // 1. option.router
     // 2. option.pathRewrite
-    this.applyRouter(req, newProxyOptions);
-    this.applyPathRewrite(req, this.pathRewriter);
+    const target = this.applyRouter(ctx.req, this.proxyOptions);
+    this.applyPathRewrite(ctx.req, this.pathRewriter);
 
     // debug logging for both http(s) and websockets
     if (this.proxyOptions.logLevel === 'debug') {
       const arrow = getArrow(
         originalPath,
-        req.url,
+        ctx.req.url,
         this.proxyOptions.target,
-        newProxyOptions.target
+        target
       );
       this.logger.debug(
         '[HPM] %s %s %s %s',
-        req.method,
+        ctx.req.method,
         originalPath,
         arrow,
-        newProxyOptions.target
+        target
       );
     }
 
-    return newProxyOptions;
+    const uri = url.parse(target);
+
+    return {
+      hostname: uri.hostname,
+      onReq: this.handleReq(ctx),
+      onRes: this.handleRes(ctx, resolve),
+      path: ctx.req.url,
+      port: uri.port,
+      protocol: uri.protocol,
+      proxyName: this.proxyOptions.proxyName,
+      proxyTimeout: this.proxyOptions.proxyTimeout,
+      target
+    };
   };
 
   // Modify option.target when router present.
@@ -145,9 +189,11 @@ export class HttpProxyMiddleware {
           options.target,
           newTarget
         );
-        options.target = newTarget;
+        return newTarget;
       }
     }
+
+    return options.target;
   };
 
   // rewrite path
@@ -166,7 +212,30 @@ export class HttpProxyMiddleware {
     }
   };
 
-  private logError = (err, req, res) => {
+  private defaultWebHandler = (ctx, resolve, reject) => (err, req, res) => {
+    if (err) {
+      this.logError(err, req);
+
+      if (this.proxyOptions.onError) {
+        this.proxyOptions.onError(err, ctx);
+        resolve();
+      } else {
+        finalhandler(req, res)(err);
+        reject();
+      }
+    } else {
+      resolve();
+    }
+  };
+
+  private defaultWSHandler = (err, req, socket) => {
+    if (err) {
+      this.logError(err, req);
+      socket.destroy();
+    }
+  };
+
+  private logError = (err, req) => {
     const hostname =
       (req.headers && req.headers.host) || (req.hostname || req.host); // (websocket) || (node0.10 || node 4/5)
     const target = this.proxyOptions.target.host || this.proxyOptions.target;
@@ -185,3 +254,9 @@ export class HttpProxyMiddleware {
     );
   };
 }
+
+function middleware(context, opts) {
+  return new KoaHttp2Proxy(context, opts).middleware;
+}
+
+export default middleware;

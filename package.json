@@ -1,7 +1,7 @@
 {
-  "name": "http-proxy-middleware",
-  "version": "0.20.0",
-  "description": "The one-liner node.js proxy middleware for connect, express and browser-sync",
+  "name": "koa-http2-proxy",
+  "version": "0.0.1",
+  "description": "Configure http2-proxy middleware with ease for koa.",
   "main": "dist/index.js",
   "files": [
     "dist"
@@ -24,7 +24,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/chimurai/http-proxy-middleware.git"
+    "url": "https://github.com/ontola/koa-http2-proxy.git"
   },
   "keywords": [
     "reverse",
@@ -32,25 +32,21 @@
     "middleware",
     "http",
     "https",
-    "connect",
-    "express",
+    "koa",
     "browser-sync",
-    "gulp",
-    "grunt-contrib-connect",
     "websocket",
     "ws",
     "cors"
   ],
-  "author": "Steven Chim",
+  "author": "Steven Chim, Ontola BV",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/chimurai/http-proxy-middleware/issues"
+    "url": "https://github.com/ontola/koa-http2-proxy/issues"
   },
-  "homepage": "https://github.com/chimurai/http-proxy-middleware",
+  "homepage": "https://github.com/ontola/koa-http2-proxy",
   "devDependencies": {
     "@commitlint/cli": "^8.0.0",
     "@commitlint/config-conventional": "^8.0.0",
-    "@types/express": "^4.17.0",
     "@types/http-proxy": "^1.17.0",
     "@types/is-glob": "^4.0.0",
     "@types/jest": "^24.0.15",
@@ -60,9 +56,10 @@
     "browser-sync": "^2.26.7",
     "connect": "^3.6.6",
     "coveralls": "^3.0.5",
-    "express": "^4.16.4",
     "husky": "^3.0.0",
     "jest": "^24.5.0",
+    "koa": "^2.11.0",
+    "koa-router": "^7.4.0",
     "open": "^6.4.0",
     "prettier": "^1.18.2",
     "ts-jest": "^24.0.0",
@@ -72,13 +69,14 @@
     "ws": "^7.1.0"
   },
   "dependencies": {
-    "http-proxy": "^1.17.0",
+    "finalhandler": "^1.1.2",
+    "http2-proxy": "^5.0.43",
     "is-glob": "^4.0.1",
     "lodash": "^4.17.14",
     "micromatch": "^4.0.2"
   },
   "engines": {
-    "node": ">=8.0.0"
+    "node": ">=10.0.0"
   },
   "husky": {
     "hooks": {

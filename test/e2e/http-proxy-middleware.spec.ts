@@ -31,7 +31,7 @@ describe('E2E http-proxy-middleware', () => {
         middleware = proxyMiddleware('/api', {
           target: 'http://localhost:8000'
         });
-        middleware(mockReq, mockRes, mockNext);
+        middleware({ req: mockReq, res: mockRes }, mockNext);
       });
 
       it('should not proxy requests when request url does not match context', () => {
@@ -50,14 +50,14 @@ describe('E2E http-proxy-middleware', () => {
 
       beforeEach(done => {
         const mwProxy = proxyMiddleware('/api', {
-          target: 'http://localhost:8000'
+          target: 'http://localhost:8000',
+          xfwd: true
         });
 
-        const mwTarget = (req, res, next) => {
-          targetUrl = req.url; // store target url.
-          targetHeaders = req.headers; // store target headers.
-          res.write('HELLO WEB'); // respond with 'HELLO WEB'
-          res.end();
+        const mwTarget = (ctx, next) => {
+          targetUrl = ctx.req.url; // store target url.
+          targetHeaders = ctx.req.headers; // store target headers.
+          ctx.body = 'HELLO WEB'; // respond with 'HELLO WEB'
         };
 
         proxyServer = createServer(3000, mwProxy);
@@ -76,8 +76,14 @@ describe('E2E http-proxy-middleware', () => {
         targetServer.close();
       });
 
-      it('should have the same headers.host value', () => {
+      it('should have target host as headers.host', () => {
         expect(targetHeaders.host).toBe('localhost:3000');
+      });
+
+      it('should have x-fowarded-for headers', () => {
+        expect(targetHeaders['x-forwarded-host']).toBe('localhost:3000');
+        expect(targetHeaders['x-forwarded-proto']).toBe('http');
+        expect(targetHeaders['x-forwarded-for']).toBe('::ffff:127.0.0.1');
       });
 
       it('should have proxied the uri-path and uri-query, but not the uri-hash', () => {
@@ -86,6 +92,44 @@ describe('E2E http-proxy-middleware', () => {
 
       it('should have response body: "HELLO WEB"', () => {
         expect(responseBody).toBe('HELLO WEB');
+      });
+    });
+
+    describe('change origin', () => {
+      let proxyServer;
+      let targetServer;
+      let targetHeaders;
+      let responseBody;
+
+      beforeEach(done => {
+        const mwProxy = proxyMiddleware({
+          target: 'http://localhost:8000',
+          changeOrigin: true
+        });
+
+        const mwTarget = (ctx, next) => {
+          targetHeaders = ctx.req.headers; // store target headers.
+          ctx.body = 'HELLO WEB'; // respond with 'HELLO WEB'
+        };
+
+        proxyServer = createServer(3000, mwProxy);
+        targetServer = createServer(8000, mwTarget);
+
+        http.get('http://localhost:3000/a/b/c', res => {
+          res.on('data', chunk => {
+            responseBody = chunk.toString();
+            done();
+          });
+        });
+      });
+
+      afterEach(() => {
+        proxyServer.close();
+        targetServer.close();
+      });
+
+      it('should have target host as headers.host', () => {
+        expect(targetHeaders.host).toBe('localhost:8000');
       });
     });
 
@@ -108,9 +152,8 @@ describe('E2E http-proxy-middleware', () => {
           target: 'http://localhost:8000'
         });
 
-        const mwTarget = (req, res, next) => {
-          res.write('HELLO WEB'); // respond with 'HELLO WEB'
-          res.end();
+        const mwTarget = (ctx, next) => {
+          ctx.body = 'HELLO WEB'; // respond with 'HELLO WEB'
         };
 
         proxyServer = createServer(3000, mwProxy);
@@ -153,9 +196,8 @@ describe('E2E http-proxy-middleware', () => {
           target: 'http://localhost:8000'
         });
 
-        const mwTarget = (req, res, next) => {
-          res.write(req.url); // respond with req.url
-          res.end();
+        const mwTarget = (ctx, next) => {
+          ctx.body = ctx.req.url; // respond with req.url
         };
 
         proxyServer = createServer(3000, mwProxy);
@@ -229,9 +271,8 @@ describe('E2E http-proxy-middleware', () => {
           target: 'http://localhost:8000'
         });
 
-        const mwTarget = (req, res, next) => {
-          res.write(req.url); // respond with req.url
-          res.end();
+        const mwTarget = (ctx, next) => {
+          ctx.body = ctx.req.url; // respond with req.url
         };
 
         proxyServer = createServer(3000, mwProxy);
@@ -271,9 +312,8 @@ describe('E2E http-proxy-middleware', () => {
           target: 'http://localhost:8000'
         });
 
-        const mwTarget = (req, res, next) => {
-          res.write(req.url); // respond with req.url
-          res.end();
+        const mwTarget = (ctx, next) => {
+          ctx.body = ctx.req.url; // respond with req.url
         };
 
         proxyServer = createServer(3000, mwProxy);
@@ -325,9 +365,8 @@ describe('E2E http-proxy-middleware', () => {
           headers: { host: 'foobar.dev' }
         });
 
-        const mwTarget = (req, res, next) => {
-          targetHeaders = req.headers;
-          res.end();
+        const mwTarget = (ctx, next) => {
+          targetHeaders = ctx.req.headers;
         };
 
         proxyServer = createServer(3000, mwProxy);
@@ -359,7 +398,7 @@ describe('E2E http-proxy-middleware', () => {
           const mwProxy = proxyMiddleware('/api', {
             target: 'http://localhost:666'
           }); // unreachable host on port:666
-          const mwTarget = (req, res, next) => {
+          const mwTarget = (ctx, next) => {
             next();
           };
 
@@ -378,16 +417,16 @@ describe('E2E http-proxy-middleware', () => {
         });
 
         it('should handle errors when host is not reachable', () => {
-          expect(response.statusCode).toBe(504);
+          expect(response.statusCode).toBe(503);
         });
       });
 
       describe('custom', () => {
         beforeEach(done => {
-          const customOnError = (err, req, res) => {
+          const customOnError = (err, ctx) => {
             if (err) {
-              res.writeHead(418); // different error code
-              res.end("I'm a teapot"); // no response body
+              ctx.response.status = 418; // different error code
+              ctx.response.body = "I'm a teapot"; // no response body
             }
           };
 
@@ -395,7 +434,7 @@ describe('E2E http-proxy-middleware', () => {
             target: 'http://localhost:666',
             onError: customOnError
           }); // unreachable host on port:666
-          const mwTarget = (req, res, next) => {
+          const mwTarget = (ctx, next) => {
             next();
           };
 
@@ -441,10 +480,9 @@ describe('E2E http-proxy-middleware', () => {
           target: 'http://localhost:8000',
           onProxyRes: fnOnProxyRes
         });
-        const mwTarget = (req, res, next) => {
-          res.setHeader('x-removed', 'remove-header');
-          res.write(req.url); // respond with req.url
-          res.end();
+        const mwTarget = (ctx, next) => {
+          ctx.response.set('x-removed', 'remove-header');
+          ctx.body = ctx.req.url; // respond with req.url
         };
 
         proxyServer = createServer(3000, mwProxy);
@@ -487,10 +525,9 @@ describe('E2E http-proxy-middleware', () => {
           onProxyReq: fnOnProxyReq
         });
 
-        const mwTarget = (req, res, next) => {
-          receivedRequest = req;
-          res.write(req.url); // respond with req.url
-          res.end();
+        const mwTarget = (ctx, next) => {
+          receivedRequest = ctx.req;
+          ctx.body = ctx.req.url; // respond with req.url
         };
 
         proxyServer = createServer(3000, mwProxy);
@@ -524,9 +561,8 @@ describe('E2E http-proxy-middleware', () => {
             '^/remove': ''
           }
         });
-        const mwTarget = (req, res, next) => {
-          res.write(req.url); // respond with req.url
-          res.end();
+        const mwTarget = (ctx, next) => {
+          ctx.body = ctx.req.url; // respond with req.url
         };
 
         proxyServer = createServer(3000, mwProxy);
@@ -557,9 +593,8 @@ describe('E2E http-proxy-middleware', () => {
 
       beforeEach(done => {
         const mwProxy = proxyMiddleware('http://localhost:8000/api');
-        const mwTarget = (req, res, next) => {
-          res.write(req.url); // respond with req.url
-          res.end();
+        const mwTarget = (ctx, next) => {
+          ctx.body = ctx.req.url; // respond with req.url
         };
 
         proxyServer = createServer(3000, mwProxy);
@@ -583,19 +618,18 @@ describe('E2E http-proxy-middleware', () => {
       });
     });
 
-    describe('express with path + proxy', () => {
+    describe('koa with path + proxy', () => {
       let proxyServer;
       let targetServer;
       let responseBody;
 
       beforeEach(done => {
         const mwProxy = proxyMiddleware('http://localhost:8000');
-        const mwTarget = (req, res, next) => {
-          res.write(req.url); // respond with req.url
-          res.end();
+        const mwTarget = (ctx, next) => {
+          ctx.body = ctx.req.url; // respond with req.url
         };
 
-        proxyServer = createServer(3000, mwProxy, '/api');
+        proxyServer = createServer(3000, mwProxy, '/api/*');
         targetServer = createServer(8000, mwTarget);
 
         http.get('http://localhost:3000/api/foo/bar', res => {
@@ -634,9 +668,8 @@ describe('E2E http-proxy-middleware', () => {
             return provider;
           }
         });
-        const mwTarget = (req, res, next) => {
-          res.write(req.url); // respond with req.url
-          res.end();
+        const mwTarget = (ctx, next) => {
+          ctx.body = ctx.req.url; // respond with req.url
         };
 
         proxyServer = createServer(3000, mwProxy);

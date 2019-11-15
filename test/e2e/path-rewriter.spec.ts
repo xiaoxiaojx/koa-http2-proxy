@@ -7,11 +7,10 @@ describe('E2E pathRewrite', () => {
 
   beforeEach(() => {
     targetData = {};
-    targetMiddleware = (req, res, next) => {
-      targetData.url = req.url; // store target url.
-      targetData.headers = req.headers; // store target headers.
-      res.write(req.url); // respond with target url.
-      res.end();
+    targetMiddleware = (ctx, next) => {
+      targetData.url = ctx.req.url; // store target url.
+      targetData.headers = ctx.req.headers; // store target headers.
+      ctx.body = ctx.req.url; // respond with target url.
     };
   });
 

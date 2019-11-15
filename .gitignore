@@ -84,6 +84,9 @@ typings/
 # DynamoDB Local files
 .dynamodb/
 
+# DynamoDB Local files
+.idea/
+
 # End of https://www.gitignore.io/api/node
 
 dist

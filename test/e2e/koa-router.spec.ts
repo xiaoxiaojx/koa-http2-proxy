@@ -1,13 +1,16 @@
-import * as express from 'express';
 import * as http from 'http';
+
+import * as Koa from 'koa';
+import * as Router from 'koa-router';
+
 import { proxyMiddleware as proxy } from './_utils';
 
-describe('Usage in Express', () => {
+describe('Usage in Koa', () => {
   let app;
   let server;
 
   beforeEach(() => {
-    app = express();
+    app = new Koa();
   });
 
   afterEach(() => {
@@ -16,11 +19,13 @@ describe('Usage in Express', () => {
   });
 
   // https://github.com/chimurai/http-proxy-middleware/issues/94
-  describe('Express Sub Route', () => {
+  describe('Koa Sub Route', () => {
     beforeEach(() => {
       // sub route config
       // @ts-ignore: Only a void function can be called with the 'new' keyword.ts(2350)
-      const sub = new express.Router();
+      const sub = new Router({
+        prefix: '/sub'
+      });
 
       function filter(pathname, req) {
         const urlFilter = new RegExp('^/sub/api');
@@ -41,7 +46,7 @@ describe('Usage in Express', () => {
       sub.get('/hello', jsonMiddleware({ content: 'foobar' }));
 
       // configure sub route on /sub junction
-      app.use('/sub', sub);
+      app.use(sub.routes());
 
       // start server
       server = app.listen(3000);
@@ -60,8 +65,8 @@ describe('Usage in Express', () => {
   });
 
   function jsonMiddleware(data) {
-    return (req, res) => {
-      res.json(data);
+    return ctx => {
+      ctx.response.body = data;
     };
   }
 });

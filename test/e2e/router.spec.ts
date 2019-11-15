@@ -8,19 +8,16 @@ describe('E2E router', () => {
   let targetServerC;
 
   beforeEach(() => {
-    targetServerA = createServer(6001, (req, res, next) => {
-      res.write('A');
-      res.end();
+    targetServerA = createServer(6001, (ctx, next) => {
+      ctx.body = 'A';
     });
 
-    targetServerB = createServer(6002, (req, res, next) => {
-      res.write('B');
-      res.end();
+    targetServerB = createServer(6002, (ctx, next) => {
+      ctx.body = 'B';
     });
 
-    targetServerC = createServer(6003, (req, res, next) => {
-      res.write('C');
-      res.end();
+    targetServerC = createServer(6003, (ctx, next) => {
+      ctx.body = 'C';
     });
   });
 

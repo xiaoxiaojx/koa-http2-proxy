@@ -1,13 +1,16 @@
-import * as express from 'express';
+import * as Koa from 'koa';
+import * as Router from 'koa-router';
 
 // tslint:disable-next-line: no-var-requires
 export const proxyMiddleware = require('../../dist/index');
 
 export function createServer(portNumber, middleware, path?) {
-  const app = express();
+  const app = new Koa();
 
   if (middleware && path) {
-    app.use(path, middleware);
+    const router = new Router();
+    router.get(path, middleware);
+    app.use(router.routes());
   } else if (middleware) {
     app.use(middleware);
   }

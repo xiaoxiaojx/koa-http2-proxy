@@ -1,7 +1,7 @@
-import { HttpProxyMiddleware } from './http-proxy-middleware';
+import { KoaHttp2Proxy } from './koa-http2-proxy';
 
 function proxy(context, opts) {
-  const { middleware } = new HttpProxyMiddleware(context, opts);
+  const { middleware } = new KoaHttp2Proxy(context, opts);
   return middleware;
 }
 

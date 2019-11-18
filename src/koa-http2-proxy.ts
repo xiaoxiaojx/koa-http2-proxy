@@ -37,7 +37,7 @@ export class KoaHttp2Proxy {
     }
     if (this.proxyOptions.ws === true) {
       // use initial request to access the server object to subscribe to http upgrade event
-      this.catchUpgradeRequest(ctx);
+      this.catchUpgradeRequest(ctx.req);
     }
 
     return new Promise((resolve, reject) =>
@@ -50,9 +50,9 @@ export class KoaHttp2Proxy {
     );
   };
 
-  private catchUpgradeRequest = ctx => {
+  private catchUpgradeRequest = req => {
     if (!this.wsInternalSubscribed) {
-      ctx.req.connection.server.on('upgrade', this.handleUpgrade(ctx));
+      req.connection.server.on('upgrade', this.handleUpgrade);
       // prevent duplicate upgrade handling;
       // in case external upgrade is also configured
       this.wsInternalSubscribed = true;
@@ -101,8 +101,15 @@ export class KoaHttp2Proxy {
     }
   };
 
-  private handleUpgrade = ctx => (req, socket, head) => {
+  private handleUpgrade = async (req, socket, head) => {
     if (this.shouldProxy(this.config.context, req)) {
+      const ctx = this.proxyOptions.app
+        ? this.proxyOptions.app.createContext(req)
+        : { req };
+      if (this.proxyOptions.onUpgrade) {
+        await this.proxyOptions.onUpgrade(ctx);
+      }
+
       const activeProxyOptions = this.prepareProxyRequest(ctx, null);
       proxy.ws(req, socket, head, activeProxyOptions, this.defaultWSHandler);
       this.logger.info('[HPM] Upgrading to WebSocket');

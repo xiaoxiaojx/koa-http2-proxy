@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.0.4](https://github.com/ontola/koa-http2-proxy/releases/tag/v0.0.4)
+
+- handle errors caused by socket.destroy();
+
 ## [v0.0.3](https://github.com/ontola/koa-http2-proxy/releases/tag/v0.0.3)
 
 - add protocol option

@@ -256,12 +256,13 @@ Providing an alternative way to decide which requests should be proxied; In case
   ```
 
 - **option.onUpgrade**: function, called before upgrading a websocket connection.
+
   ```javascript
-    onUpgrade: async (ctx) => {
-      // add session middleware to the websocket connection
-      // see option.app
-      await session(ctx, () => {});
-    }
+  onUpgrade: async ctx => {
+    // add session middleware to the websocket connection
+    // see option.app
+    await session(ctx, () => {});
+  };
   ```
 
 - **option.app**: koa app, used to generate a koa ctx to be used in onUpgrade. If left blank, a object containing only `req` will be used as context

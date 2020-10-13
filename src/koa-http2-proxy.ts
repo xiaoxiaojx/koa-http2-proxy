@@ -238,7 +238,11 @@ export class KoaHttp2Proxy {
   private defaultWSHandler = (err, req, socket) => {
     if (err) {
       this.logError(err, req);
-      socket.destroy();
+      try {
+        socket.destroy();
+      } catch (e) {
+        this.logError(e, req);
+      }
     }
   };
 

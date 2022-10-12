@@ -7,7 +7,7 @@ import * as url from 'url';
 
 import { createConfig } from './config-factory';
 import * as contextMatcher from './context-matcher';
-import { getArrow, getInstance } from './logger';
+import { getArrow, getInstance, silentInstance } from './logger';
 import * as PathRewriter from './path-rewriter';
 import * as Router from './router';
 
@@ -25,6 +25,10 @@ export class KoaHttp2Proxy {
     this.pathRewriter = PathRewriter.createPathRewriter(
       this.proxyOptions.pathRewrite
     ); // returns undefined when "pathRewrite" is not provided
+
+    if (!this.proxyOptions.logs) {
+      this.logger = silentInstance()
+    }
 
     this.logger.info(
       `[HPM] Proxy created: ${this.config.context}  -> ${this.proxyOptions.target}`

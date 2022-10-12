@@ -1,7 +1,10 @@
 import * as _ from 'lodash';
 import * as util from 'util';
 
+function noop() {}
+
 let loggerInstance;
+
 
 const defaultProvider = {
   // tslint:disable: no-console
@@ -11,6 +14,15 @@ const defaultProvider = {
   warn: console.warn,
   error: console.error
 };
+
+const silentProvider = {
+  // tslint:disable: no-console
+  log: noop,
+  debug: noop, // use .log(); since console does not have .debug()
+  info: noop,
+  warn: noop,
+  error: noop
+}
 
 // log level 'weight'
 enum LEVELS {
@@ -27,6 +39,12 @@ export function getInstance() {
   }
 
   return loggerInstance;
+}
+
+export function silentInstance() {
+  loggerInstance = silentProvider
+
+  return loggerInstance
 }
 
 class Logger {

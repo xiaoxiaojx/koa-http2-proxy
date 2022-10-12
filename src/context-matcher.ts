@@ -5,6 +5,10 @@ import * as url from 'url';
 import { ERRORS } from './errors';
 
 export function match(context, uri, req) {
+  // RegExp
+  if (context instanceof RegExp) {
+    return context.test(uri)
+  }
   // single path
   if (isStringPath(context)) {
     return matchSingleStringPath(context, uri);

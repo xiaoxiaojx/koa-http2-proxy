@@ -129,6 +129,7 @@ Providing an alternative way to decide which requests should be proxied; In case
   - `proxy({...})` - matches any path, all requests will be proxied.
   - `proxy('/', {...})` - matches any path, all requests will be proxied.
   - `proxy('/api', {...})` - matches paths starting with `/api`
+  - `proxy(/^\/([a-zA-Z0-9_/-]{1,})$/, {...})` - matches paths with regexp `/api`
 
 - **multiple path matching**
 
@@ -273,6 +274,7 @@ Providing an alternative way to decide which requests should be proxied; In case
 - **option.changeOrigin**: true/false, Default: false - changes the origin of the host header to the target URL
 - **option.proxyTimeout**: timeout (in millis) when proxy receives no response from target
 - **option.proxyName**: Proxy name used for Via header
+- **option.useHttpsRequest**: true/false: Whether to use https to request clients, default false
 
 ## Shorthand
 

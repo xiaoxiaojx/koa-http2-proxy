@@ -1,4 +1,5 @@
-import { request } from 'http';
+import { request as httpRequest } from 'http';
+import { request as httpsRequest } from 'https';
 
 import * as finalhandler from 'finalhandler';
 import * as proxy from 'http2-proxy';
@@ -60,7 +61,8 @@ export class KoaHttp2Proxy {
   };
 
   private handleReq = ctx => (req, options) => {
-    const proxyReq = request(options);
+    const request = this.proxyOptions.useHttpsRequest ? httpsRequest : httpRequest
+    const proxyReq =  request(options);
 
     if (!this.proxyOptions.changeOrigin) {
       proxyReq.setHeader('host', req.headers.host);

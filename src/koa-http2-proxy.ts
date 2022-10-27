@@ -131,7 +131,8 @@ export class KoaHttp2Proxy {
    * @return {Boolean}
    */
   private shouldProxy = (context, req) => {
-    const path = req.originalUrl || req.url;
+    const path = url.parse(req.originalUrl || req.url).pathname;
+    
     return contextMatcher.match(context, path, req);
   };
 

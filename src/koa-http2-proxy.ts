@@ -27,7 +27,7 @@ export class KoaHttp2Proxy {
     ); // returns undefined when "pathRewrite" is not provided
 
     if (!this.proxyOptions.logs) {
-      this.logger = silentInstance()
+      this.logger = silentInstance();
     }
 
     this.logger.info(
@@ -65,8 +65,10 @@ export class KoaHttp2Proxy {
   };
 
   private handleReq = ctx => (req, options) => {
-    const request = this.proxyOptions.useHttpsRequest ? httpsRequest : httpRequest
-    const proxyReq =  request(options);
+    const request = this.proxyOptions.useHttpsRequest
+      ? httpsRequest
+      : httpRequest;
+    const proxyReq = request(options);
 
     if (!this.proxyOptions.changeOrigin) {
       proxyReq.setHeader('host', req.headers.host);
@@ -88,6 +90,13 @@ export class KoaHttp2Proxy {
 
     if (this.proxyOptions.onProxyReq) {
       this.proxyOptions.onProxyReq(proxyReq, ctx);
+    }
+
+    if (this.proxyOptions.logs) {
+      this.logger.info(
+        '[HPM] Headers: %o',
+        JSON.stringify(proxyReq.getHeaders())
+      );
     }
 
     return proxyReq;
@@ -132,7 +141,7 @@ export class KoaHttp2Proxy {
    */
   private shouldProxy = (context, req) => {
     const path = url.parse(req.originalUrl || req.url).pathname;
-    
+
     return contextMatcher.match(context, path, req);
   };
 

@@ -1,6 +1,6 @@
 {
   "name": "koa-http2-proxy2",
-  "version": "0.0.4",
+  "version": "0.0.6",
   "description": "Configure http2-proxy middleware with ease for koa.",
   "main": "dist/index.js",
   "files": [

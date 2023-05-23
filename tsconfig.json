@@ -5,6 +5,8 @@
     "module": "commonjs",
     "moduleResolution": "node",
     "target": "es2015",
+    "allowJs": true,
+    "skipLibCheck": true
   },
   "include": ["./src"]
 }

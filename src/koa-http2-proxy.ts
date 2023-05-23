@@ -10,15 +10,16 @@ import * as contextMatcher from './context-matcher';
 import { getArrow, getInstance, silentInstance } from './logger';
 import * as PathRewriter from './path-rewriter';
 import * as Router from './router';
+// @ts-ignore
+const Common = require('./common');
 
 export class KoaHttp2Proxy {
   private logger = getInstance();
   private config;
-  private wsInternalSubscribed = false;
   private proxyOptions;
   private pathRewriter;
 
-  constructor(context, opts) {
+  constructor(context, opts, getServer) {
     this.config = createConfig(context, opts);
     this.proxyOptions = this.config.options;
 
@@ -33,6 +34,14 @@ export class KoaHttp2Proxy {
     this.logger.info(
       `[HPM] Proxy created: ${this.config.context}  -> ${this.proxyOptions.target}`
     );
+
+    if (typeof getServer === 'function') {
+      getServer().then(server => {
+        server.on('upgrade', (req, socket, head) => {
+          this.handleUpgrade(req, socket, head);
+        });
+      });
+    }
   }
 
   // https://github.com/Microsoft/TypeScript/wiki/'this'-in-TypeScript#red-flags-for-this
@@ -42,26 +51,18 @@ export class KoaHttp2Proxy {
     }
     if (this.proxyOptions.ws === true) {
       // use initial request to access the server object to subscribe to http upgrade event
-      this.catchUpgradeRequest(ctx.req);
+      return next();
     }
 
     return new Promise((resolve, reject) =>
       proxy.web(
         ctx.req,
         ctx.res,
+        // @ts-ignore
         this.prepareProxyRequest(ctx, resolve),
         this.defaultWebHandler(ctx, resolve, reject)
       )
     );
-  };
-
-  private catchUpgradeRequest = req => {
-    if (!this.wsInternalSubscribed) {
-      req.connection.server.on('upgrade', this.handleUpgrade);
-      // prevent duplicate upgrade handling;
-      // in case external upgrade is also configured
-      this.wsInternalSubscribed = true;
-    }
   };
 
   private handleReq = ctx => (req, options) => {
@@ -118,16 +119,7 @@ export class KoaHttp2Proxy {
 
   private handleUpgrade = async (req, socket, head) => {
     if (this.shouldProxy(this.config.context, req)) {
-      const ctx = this.proxyOptions.app
-        ? this.proxyOptions.app.createContext(req)
-        : { req };
-      if (this.proxyOptions.onUpgrade) {
-        await this.proxyOptions.onUpgrade(ctx);
-      }
-
-      const activeProxyOptions = this.prepareProxyRequest(ctx, null);
-      proxy.ws(req, socket, head, activeProxyOptions, this.defaultWSHandler);
-      this.logger.info('[HPM] Upgrading to WebSocket');
+      Common.ws(req, socket, head, this.proxyOptions);
     }
   };
 
@@ -282,8 +274,8 @@ export class KoaHttp2Proxy {
   };
 }
 
-function middleware(context, opts) {
-  return new KoaHttp2Proxy(context, opts).middleware;
+function middleware(context, opts, getServer) {
+  return new KoaHttp2Proxy(context, opts, getServer).middleware;
 }
 
 export default middleware;

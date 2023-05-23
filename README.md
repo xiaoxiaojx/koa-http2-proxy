@@ -1,4 +1,4 @@
-# koa-http2-proxy
+# koa-http2-proxy2
 
 Configure [http2-proxy](https://github.com/nxtedition/node-http2-proxy) middleware with ease for [koa](https://github.com/koajs/koa).
 
@@ -10,7 +10,7 @@ Proxy requests to `http://www.example.org`
 
 ```javascript
 var Koa = require('koa');
-var proxy = require('koa-http2-proxy');
+var proxy = require('koa-http2-proxy2');
 var app = new Koa();
 
 // response
@@ -45,7 +45,7 @@ app.listen(3000);
 ## Install
 
 ```javascript
-$ npm install --save-dev koa-http2-proxy
+$ npm install --save-dev koa-http2-proxy2
 ```
 
 ## Core concept
@@ -55,7 +55,7 @@ Proxy middleware configuration.
 #### proxy([context,] config)
 
 ```javascript
-var proxy = require('koa-http2-proxy');
+var proxy = require('koa-http2-proxy2');
 
 var apiProxy = proxy('/api', { target: 'http://www.example.org' });
 //                   \____/   \_____________________________/
@@ -69,7 +69,7 @@ var apiProxy = proxy('/api', { target: 'http://www.example.org' });
   (more on [context matching](#context-matching))
 - **options.target**: target host to proxy to. _(protocol + host)_
 
-(full list of [`koa-http2-proxy` configuration options](#options))
+(full list of [`koa-http2-proxy2` configuration options](#options))
 
 #### proxy(uri [, config])
 
@@ -85,7 +85,7 @@ More about the [shorthand configuration](#shorthand).
 ```javascript
 // include dependencies
 var Koa = require('koa');
-var proxy = require('koa-http2-proxy');
+var proxy = require('koa-http2-proxy2');
 
 // proxy middleware options
 var options = {
@@ -343,7 +343,7 @@ $ yarn cover
 
 ## Changelog
 
-- [View changelog](https://github.com/ontola/koa-http2-proxy/blob/master/CHANGELOG.md)
+- [View changelog](https://github.com/ontola/koa-http2-proxy2/blob/master/CHANGELOG.md)
 
 ## License
 

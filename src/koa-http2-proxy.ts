@@ -27,6 +27,10 @@ export class KoaHttp2Proxy {
       this.proxyOptions.pathRewrite
     ); // returns undefined when "pathRewrite" is not provided
 
+    // @ts-ignore
+    const targetUrlObj = new URL(this.proxyOptions.target);
+    this.proxyOptions.useHttpsRequest = Common.isSSL.test(targetUrlObj.protocol)
+
     if (!this.proxyOptions.logs) {
       this.logger = silentInstance();
     }

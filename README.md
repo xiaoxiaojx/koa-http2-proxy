@@ -1,8 +1,10 @@
 # koa-http2-proxy2
+forked from [ontola/koa-http2-proxy](https://github.com/ontola/koa-http2-proxy). On its basis, the following problems are solved 👇
+* ✅ 🐛: Fix http2 proxy ssl handshake error
+* ✅ 🐛: Rewrote the websocket proxy section to solve the problem that the websocket proxy does not work
+* ✅ 🚀: Context matching support for regular expressions
 
-Configure [http2-proxy](https://github.com/nxtedition/node-http2-proxy) middleware with ease for [koa](https://github.com/koajs/koa).
 
-Based on [http-proxy-middleware](https://github.com/chimurai/http-proxy-middleware).
 
 ## TL;DR
 
@@ -274,7 +276,6 @@ Providing an alternative way to decide which requests should be proxied; In case
 - **option.changeOrigin**: true/false, Default: false - changes the origin of the host header to the target URL
 - **option.proxyTimeout**: timeout (in millis) when proxy receives no response from target
 - **option.proxyName**: Proxy name used for Via header
-- **option.useHttpsRequest**: true/false: Whether to use https to request clients, default false
 - **option.logs**: true/false: Whether to enable log printing, default false
 
 ## Shorthand
